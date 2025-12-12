@@ -207,7 +207,7 @@
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
     let jsPDF; if (window.jspdf) { jsPDF = window.jspdf.jsPDF; }
 
-    // --- FUNÇÕES DE SEGURANÇA (DEFINIDAS ANTES) ---
+    // --- FUNÇÕES DE SEGURANÇA E UX (AGORA COM SWAL) ---
     window.toggleTheme = () => {
         document.body.classList.toggle('dark-mode');
         const isDark = document.body.classList.contains('dark-mode');
@@ -283,19 +283,6 @@
         const { value: email } = await Swal.fire({ title: 'Recuperar Senha', input: 'email', inputLabel: 'Digite seu e-mail', showCancelButton: true });
         if (email) { sendPasswordResetEmail(auth, email).then(() => Swal.fire('Sucesso', 'E-mail enviado!', 'success')).catch(err => Swal.fire('Erro', err.message, 'error')); }
     }
-
-    // --- FUNÇÕES DE UPDATE (DEFINIDAS AQUI) ---
-    window.aplicarFiltros = () => { 
-        const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value, cF=document.getElementById('filtroCategoria').value, termo=document.getElementById('searchInput').value.toLowerCase(); 
-        let f=todasTransacoes.filter(i=>{ const md=i.data>=dI&&i.data<=dF, mc=cF==='todas'||i.categoria===cF, mb=i.descricao.toLowerCase().includes(termo); return md&&mc&&mb; }); 
-        atualizarTabela(f); atualizarCards(f); atualizarGraficos(f); atualizarOrcamentos(f); 
-    }
-
-    function atualizarTabela(d){ const t=document.getElementById('tabelaDados'); t.innerHTML=''; d.forEach(i=>{ const estaPago = i.pago !== false; let statusIcon = estaPago ? `<button class="btn-sm btn-check" title="Pago" onclick="alternarStatus('${i.id}', true)"><i class="fas fa-check-circle"></i></button>` : `<button class="btn-sm" style="background:#eee;color:#777;" title="Pagar" onclick="alternarStatus('${i.id}', false)"><i class="far fa-clock"></i></button>`; if(i.pago) statusIcon = `<button class="btn-sm btn-check" title="Desmarcar" onclick="alternarStatus('${i.id}', true)"><i class="fas fa-check-circle"></i></button>`; let badge='',c=''; if(i.tipo==='entrada'){badge='<span class="badge badge-in">ENT</span>';c='var(--success)';} else if(i.tipo==='saida'){badge='<span class="badge badge-out">SAÍ</span>';c='var(--danger)';} else{badge='<span class="badge badge-transf">TRF</span>';c='var(--info)';} if(!estaPago) c = '#999'; t.innerHTML+=`<tr><td>${statusIcon}</td><td>${new Date(i.data).toLocaleDateString('pt-BR',{timeZone:'UTC'})}</td><td><b>${i.descricao}</b><br><small style="color:var(--text-sec)">${i.categoria||i.contaDestino||''}</small></td><td>${badge}</td><td><small>${i.formaPagamento}</small></td><td class="blur-content" style="font-weight:bold;color:${c}">R$ ${i.valor.toFixed(2)}</td><td><button class="btn-sm" style="color:var(--text)" onclick="gerarReciboPDF('${i.id}')"><i class="fas fa-print"></i></button><button class="btn-sm btn-edit" onclick="prepararEdicaoTransacao('${i.id}')"><i class="fas fa-pen"></i></button><button class="btn-sm btn-delete" onclick="deletarTransacao('${i.id}')"><i class="fas fa-trash"></i></button></td></tr>`; }); }
-    function atualizarCards(d){ let e=0,s=0, pe=0, ps=0; d.forEach(i=>{ const estaPago = i.pago !== false; if(i.tipo==='entrada') { if(estaPago) e+=i.valor; else pe+=i.valor; } if(i.tipo==='saida') { if(estaPago) s+=i.valor; else ps+=i.valor; } }); document.getElementById('totalEntradas').innerText=`R$ ${e.toFixed(2)}`; document.getElementById('totalSaidas').innerText=`R$ ${s.toFixed(2)}`; document.getElementById('totalSaldo').innerText=`R$ ${(e-s).toFixed(2)}`; document.getElementById('pendenteEntradas').innerText=`+ R$ ${pe.toFixed(2)} a receber`; document.getElementById('pendenteSaidas').innerText=`+ R$ ${ps.toFixed(2)} a pagar`; }
-    function atualizarOrcamentos(d){ const c=document.getElementById('resumoCategorias'); c.innerHTML=''; const g={}; d.forEach(i=>{ if(i.tipo==='saida' && i.pago !== false)g[i.categoria]=(g[i.categoria]||0)+i.valor; }); listaCategorias.forEach(cat=>{ const ga=g[cat.nome]||0,l=cat.limite||0; if(l===0&&ga===0)return; let p=(l>0)?(ga/l)*100:100; c.innerHTML+=`<div style="margin-bottom:15px; font-size:13px;"><div style="display:flex;justify-content:space-between;"><span>${cat.nome}</span><span class="blur-content">${ga.toFixed(0)} / ${l.toFixed(0)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${p>100?100:p}%; background:${ga>l?'var(--danger)':'var(--success)'};"></div></div></div>`; }); }
-    function atualizarGraficos(d){ const cM={}; d.filter(x=>x.tipo==='saida' && x.pago !== false).forEach(x=>{ cM[x.categoria]=(cM[x.categoria]||0)+x.valor; }); if(chartPizza)chartPizza.destroy(); chartPizza=new Chart(document.getElementById('graficoPizza'),{type:'doughnut',data:{labels:Object.keys(cM),datasets:[{data:Object.values(cM),backgroundColor:['#4e54c8','#8f94fb','#00b894','#fdcb6e','#d63031']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}}); const mM={}; d.forEach(x=>{ if(x.pago===false)return; const m=x.data.substring(0,7); if(!mM[m])mM[m]={e:0,s:0}; if(x.tipo==='entrada')mM[m].e+=x.valor; else if(x.tipo==='saida')mM[m].s+=x.valor; }); const l=Object.keys(mM).sort(); if(chartBarras)chartBarras.destroy(); chartBarras=new Chart(document.getElementById('graficoBarras'),{type:'bar',data:{labels:l,datasets:[{label:'Entradas',data:l.map(k=>mM[k].e),backgroundColor:'#00b894',borderRadius:5},{label:'Saídas',data:l.map(k=>mM[k].s),backgroundColor:'#d63031',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false}}); }
-    function calcularSaldosContas() { const c=document.getElementById('resumoContas'); if(!c) return; c.innerHTML=''; listaContas.forEach(conta => { let saldo=0; todasTransacoes.forEach(t=>{ if(t.pago!==false) { if(t.tipo==='entrada'&&t.formaPagamento===conta.nome) saldo+=t.valor; if(t.tipo==='saida'&&t.formaPagamento===conta.nome) saldo-=t.valor; if(t.tipo==='transferencia'){ if(t.contaOrigem===conta.nome) saldo-=t.valor; if(t.contaDestino===conta.nome) saldo+=t.valor; } } }); c.innerHTML+=`<div class="wallet-card"><div class="wallet-header"><div class="wallet-icon"><i class="fas fa-wallet"></i></div><div class="wallet-name">${conta.nome}</div></div><div class="wallet-balance blur-content" style="color:${saldo>=0?'var(--text)':'var(--danger)'}">R$ ${saldo.toFixed(2)}</div></div>`; }); }
 
     // -----------------------------------------------------------
     // [IMPORTANTE] COLE SUAS CHAVES AQUI:
@@ -377,7 +364,6 @@
 
     document.getElementById('btnLogout').addEventListener('click', () => signOut(auth));
     
-    // --- ESTADO DE AUTENTICAÇÃO ---
     onAuthStateChanged(auth, (u) => { 
         if(u){ 
             currentUser = u; 
@@ -432,30 +418,143 @@
         onSnapshot(query(collection(db,"metas"), where("uid", "==", currentUser.uid)), (s)=>{ document.getElementById('listaMetas').innerHTML=''; s.forEach(d=>{ const m=d.data(); const p=(m.atual/m.alvo)*100; document.getElementById('listaMetas').innerHTML+=`<div class="goal-card" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;"><b>${m.nome}</b><button class="btn-sm btn-delete" style="width:auto;" onclick="deletarMeta('${d.id}')">🗑️</button></div><div>R$ ${m.atual} / ${m.alvo}</div><div class="big-progress"><div class="big-fill" style="width:${p>100?100:p}%"></div></div><div style="display:flex;gap:5px;"><button class="btn-deposit" onclick="movimentarMeta('${d.id}',${m.atual},true)">+</button><button class="btn-withdraw" onclick="movimentarMeta('${d.id}',${m.atual},false)">-</button></div></div>`; }); });
     }
 
+    // --- CRUD ---
     window.salvarCategoria=async()=>{const n=document.getElementById('novaCatNome').value,l=parseFloat(document.getElementById('novaCatLimite').value)||0,t=document.getElementById('novaCatTipo').value;if(!n)return;if(editandoCategoriaId){await updateDoc(doc(db,"categorias",editandoCategoriaId),{nome:n,limite:l,tipo:t});cancelarEdicaoCat();}else{ await addDoc(collection(db,"categorias"),{nome:n,limite:l,tipo:t, uid: currentUser.uid}); }document.getElementById('novaCatNome').value='';}
     window.criarConta=async()=>{const n=document.getElementById('novaContaNome').value,t=document.getElementById('novaContaTipo').value;if(!n)return Swal.fire('Erro','Nome?','error'); await addDoc(collection(db,"contas"),{nome:n,tipo:t, uid: currentUser.uid}); Toast.fire({icon:'success',title:'Criada!'});document.getElementById('novaContaNome').value='';}
     window.criarMeta=async()=>{const n=document.getElementById('metaNome').value,a=parseFloat(document.getElementById('metaAlvo').value),at=parseFloat(document.getElementById('metaAtual').value);if(!n||!a)return Swal.fire('Erro','Dados?','error'); await addDoc(collection(db,"metas"),{nome:n,alvo:a,atual:at||0, uid: currentUser.uid}); document.getElementById('metaNome').value='';}
     window.adicionarFixa=async()=>{const d=document.getElementById('fixaDesc').value,v=parseFloat(document.getElementById('fixaValor').value),dia=parseInt(document.getElementById('fixaDia').value),cat=document.getElementById('fixaCategoriaSelect').value;if(!d||!v)return Swal.fire('Erro','Preencha','error'); await addDoc(collection(db,"despesas_fixas"),{descricao:d,valor:v,dia:dia,categoria:cat, uid: currentUser.uid}); Toast.fire({icon:'success',title:'Salvo'});}
     window.gerarLancamentosMensais=async()=>{Swal.fire({title:'Gerar?',showCancelButton:true}).then(async(r)=>{if(r.isConfirmed){const h=new Date();for(const i of listaFixas){ await addDoc(collection(db,"transacoes"),{descricao:i.descricao,valor:i.valor,tipo:'saida',categoria:i.categoria,formaPagamento:'Boleto',data:new Date(h.getFullYear(),h.getMonth(),i.dia).toISOString().split('T')[0],pago:false,uid:currentUser.uid, criadoEm:new Date(),origem:'fixa'});}Toast.fire({icon:'success',title:'Gerado (Pendentes)'});}});}
+    
     document.getElementById('btnSalvar').addEventListener('click', async()=>{
         const desc=document.getElementById('desc').value, valor=parseFloat(document.getElementById('valor').value), tipo=document.getElementById('tipo').value, dataStr=document.getElementById('data').value, cat=document.getElementById('categoriaSelect').value, conta=document.getElementById('pagamentoSelect').value, pago=document.getElementById('statusPago').checked;
         let cDest=null, parc=1; if(tipo==='transferencia') cDest=document.getElementById('contaDestinoSelect').value; else parc=parseInt(document.getElementById('parcelas').value)||1;
         if(!desc||!valor||!dataStr||!conta) return Swal.fire('Atenção','Preencha tudo','warning');
         try{ if(editandoTransacaoId){ await updateDoc(doc(db,"transacoes",editandoTransacaoId),{descricao:desc,valor,tipo,data:dataStr,categoria:cat,formaPagamento:conta,contaOrigem:conta,contaDestino:cDest, pago:pago}); Toast.fire({icon:'success',title:'Atualizado'}); cancelarEdicao(); } else{ if(tipo==='transferencia'){ await addDoc(collection(db,"transacoes"),{descricao:desc,valor,tipo,data:dataStr,contaOrigem:conta,contaDestino:cDest,formaPagamento:conta,pago:true,uid:currentUser.uid, criadoEm:new Date()}); Toast.fire({icon:'success',title:'Transf OK'}); } else{ const co=listaContas.find(c=>c.nome===conta); const cc=co&&co.tipo==='cartao'; if(cc&&parc>1){ let d=new Date(dataStr); for(let i=0;i<parc;i++){ let nd=new Date(d); nd.setMonth(d.getMonth()+i); await addDoc(collection(db,"transacoes"),{descricao:`${desc} (${i+1}/${parc})`,valor,tipo,data:nd.toISOString().split('T')[0],categoria:cat,formaPagamento:conta,pago:false,uid:currentUser.uid, criadoEm:new Date()}); } Toast.fire({icon:'success',title:`${parc}x (Pendentes)`}); } else{ await addDoc(collection(db,"transacoes"),{descricao:desc,valor,tipo,data:dataStr,categoria:cat,formaPagamento:conta,pago:pago,uid:currentUser.uid, criadoEm:new Date()}); Toast.fire({icon:'success',title:'Salvo'}); } } document.getElementById('desc').value=''; document.getElementById('valor').value=''; } }catch(e){Swal.fire('Erro',e.message,'error');} });
+
+    window.prepararEdicaoCategoria=(id,n,l,t)=>{document.getElementById('novaCatNome').value=n;document.getElementById('novaCatLimite').value=l;if(t)document.getElementById('novaCatTipo').value=t;toggleLimitInput();editandoCategoriaId=id;document.getElementById('btnSalvarCat').innerHTML="Salvar";document.getElementById('btnCancelarCat').style.display='block';}
+    window.cancelarEdicaoCat=()=>{editandoCategoriaId=null;document.getElementById('novaCatNome').value='';document.getElementById('btnSalvarCat').innerHTML="Add";document.getElementById('btnCancelarCat').style.display='none';}
     window.prepararEdicaoTransacao=(id)=>{const i=todasTransacoes.find(t=>t.id===id);if(!i)return;document.getElementById('desc').value=i.descricao;document.getElementById('valor').value=i.valor;document.getElementById('tipo').value=i.tipo;document.getElementById('data').value=i.data;document.getElementById('categoriaSelect').value=i.categoria;document.getElementById('pagamentoSelect').value=i.formaPagamento;document.getElementById('statusPago').checked=i.pago!==false;editandoTransacaoId=id;document.getElementById('tituloFormLancar').innerText="Editando";document.getElementById('btnSalvar').innerHTML="ATUALIZAR";document.getElementById('btnCancelarEdicao').style.display='block';mudarAba('lancar');verificarTipo();}
     window.cancelarEdicao=()=>{editandoTransacaoId=null;document.getElementById('tituloFormLancar').innerText="Nova";document.getElementById('desc').value='';document.getElementById('valor').value='';document.getElementById('statusPago').checked=true;document.getElementById('btnSalvar').innerHTML="CONFIRMAR";document.getElementById('btnCancelarEdicao').style.display='none';}
-    window.deletarCategoria=async(id)=>{if(confirm("Apagar?"))await deleteDoc(doc(db,"categorias",id));}
-    window.deletarConta=async(id)=>{if(confirm("Apagar?"))await deleteDoc(doc(db,"contas",id));}
-    window.deletarMeta=async(id)=>{if(confirm("Apagar?"))await deleteDoc(doc(db,"metas",id));}
-    window.deletarFixa=async(id)=>{if(confirm("Apagar?"))await deleteDoc(doc(db,"despesas_fixas",id));}
+    
+    // --- UPDATED DELETE FUNCTIONS (SWEETALERT) ---
+    window.deletarCategoria = async (id) => {
+        Swal.fire({
+            title: 'Excluir Categoria?',
+            text: "Você não poderá reverter isso!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir!',
+            cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await deleteDoc(doc(db, "categorias", id));
+                Toast.fire({ icon: 'success', title: 'Categoria excluída' });
+            }
+        });
+    }
+
+    window.deletarConta = async (id) => {
+        Swal.fire({
+            title: 'Excluir Conta?',
+            text: "Isso não apagará as transações vinculadas.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sim, excluir!'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await deleteDoc(doc(db, "contas", id));
+                Toast.fire({ icon: 'success', title: 'Conta excluída' });
+            }
+        });
+    }
+
+    window.deletarMeta = async (id) => {
+        Swal.fire({
+            title: 'Excluir Meta?',
+            text: "Seu progresso será perdido.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sim, excluir!'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await deleteDoc(doc(db, "metas", id));
+                Toast.fire({ icon: 'success', title: 'Meta excluída' });
+            }
+        });
+    }
+
+    window.deletarFixa = async (id) => {
+        Swal.fire({
+            title: 'Parar Recorrência?',
+            text: "Essa despesa não será mais gerada automaticamente.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sim, parar!'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                await deleteDoc(doc(db, "despesas_fixas", id));
+                Toast.fire({ icon: 'success', title: 'Removido' });
+            }
+        });
+    }
+
+    window.movimentarMeta=async(id,s,d)=>{const{value:v}=await Swal.fire({title:d?'Guardar':'Sacar',input:'number',showCancelButton:true});if(v){const n=parseFloat(v),ns=d?s+n:s-n;await updateDoc(doc(db,"metas",id),{atual:ns});}}
+    
     window.deletarTransacao=async(id)=>{Swal.fire({title:'Apagar?',showCancelButton:true,confirmButtonColor:'#d33'}).then(async(r)=>{if(r.isConfirmed)await deleteDoc(doc(db,"transacoes",id))});}
+    
+    window.aplicarFiltros = () => { const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value, cF=document.getElementById('filtroCategoria').value, termo=document.getElementById('searchInput').value.toLowerCase(); let f=todasTransacoes.filter(i=>{ const md=i.data>=dI&&i.data<=dF, mc=cF==='todas'||i.categoria===cF, mb=i.descricao.toLowerCase().includes(termo); return md&&mc&&mb; }); atualizarTabela(f); atualizarCards(f); atualizarGraficos(f); atualizarOrcamentos(f); }
+    function atualizarTabela(d){ const t=document.getElementById('tabelaDados'); t.innerHTML=''; d.forEach(i=>{ const estaPago = i.pago !== false; let statusIcon = estaPago ? `<button class="btn-sm btn-check" title="Pago" onclick="alternarStatus('${i.id}', true)"><i class="fas fa-check-circle"></i></button>` : `<button class="btn-sm" style="background:#eee;color:#777;" title="Pagar" onclick="alternarStatus('${i.id}', false)"><i class="far fa-clock"></i></button>`; if(i.pago) statusIcon = `<button class="btn-sm btn-check" title="Desmarcar" onclick="alternarStatus('${i.id}', true)"><i class="fas fa-check-circle"></i></button>`; let badge='',c=''; if(i.tipo==='entrada'){badge='<span class="badge badge-in">ENT</span>';c='var(--success)';} else if(i.tipo==='saida'){badge='<span class="badge badge-out">SAÍ</span>';c='var(--danger)';} else{badge='<span class="badge badge-transf">TRF</span>';c='var(--info)';} if(!estaPago) c = '#999'; t.innerHTML+=`<tr><td>${statusIcon}</td><td>${new Date(i.data).toLocaleDateString('pt-BR',{timeZone:'UTC'})}</td><td><b>${i.descricao}</b><br><small style="color:var(--text-sec)">${i.categoria||i.contaDestino||''}</small></td><td>${badge}</td><td><small>${i.formaPagamento}</small></td><td class="blur-content" style="font-weight:bold;color:${c}">R$ ${i.valor.toFixed(2)}</td><td><button class="btn-sm" style="color:var(--text)" onclick="gerarReciboPDF('${i.id}')"><i class="fas fa-print"></i></button><button class="btn-sm btn-edit" onclick="prepararEdicaoTransacao('${i.id}')"><i class="fas fa-pen"></i></button><button class="btn-sm btn-delete" onclick="deletarTransacao('${i.id}')"><i class="fas fa-trash"></i></button></td></tr>`; }); }
+    function atualizarCards(d){ let e=0,s=0, pe=0, ps=0; d.forEach(i=>{ const estaPago = i.pago !== false; if(i.tipo==='entrada') { if(estaPago) e+=i.valor; else pe+=i.valor; } if(i.tipo==='saida') { if(estaPago) s+=i.valor; else ps+=i.valor; } }); document.getElementById('totalEntradas').innerText=`R$ ${e.toFixed(2)}`; document.getElementById('totalSaidas').innerText=`R$ ${s.toFixed(2)}`; document.getElementById('totalSaldo').innerText=`R$ ${(e-s).toFixed(2)}`; document.getElementById('pendenteEntradas').innerText=`+ R$ ${pe.toFixed(2)} a receber`; document.getElementById('pendenteSaidas').innerText=`+ R$ ${ps.toFixed(2)} a pagar`; }
+    function atualizarOrcamentos(d){ const c=document.getElementById('resumoCategorias'); c.innerHTML=''; const g={}; d.forEach(i=>{ if(i.tipo==='saida' && i.pago !== false)g[i.categoria]=(g[i.categoria]||0)+i.valor; }); listaCategorias.forEach(cat=>{ const ga=g[cat.nome]||0,l=cat.limite||0; if(l===0&&ga===0)return; let p=(l>0)?(ga/l)*100:100; c.innerHTML+=`<div style="margin-bottom:15px; font-size:13px;"><div style="display:flex;justify-content:space-between;"><span>${cat.nome}</span><span class="blur-content">${ga.toFixed(0)} / ${l.toFixed(0)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${p>100?100:p}%; background:${ga>l?'var(--danger)':'var(--success)'};"></div></div></div>`; }); }
+    function atualizarGraficos(d){ const cM={}; d.filter(x=>x.tipo==='saida' && x.pago !== false).forEach(x=>{ cM[x.categoria]=(cM[x.categoria]||0)+x.valor; }); if(chartPizza)chartPizza.destroy(); chartPizza=new Chart(document.getElementById('graficoPizza'),{type:'doughnut',data:{labels:Object.keys(cM),datasets:[{data:Object.values(cM),backgroundColor:['#4e54c8','#8f94fb','#00b894','#fdcb6e','#d63031']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}}); const mM={}; d.forEach(x=>{ if(x.pago===false)return; const m=x.data.substring(0,7); if(!mM[m])mM[m]={e:0,s:0}; if(x.tipo==='entrada')mM[m].e+=x.valor; else if(x.tipo==='saida')mM[m].s+=x.valor; }); const l=Object.keys(mM).sort(); if(chartBarras)chartBarras.destroy(); chartBarras=new Chart(document.getElementById('graficoBarras'),{type:'bar',data:{labels:l,datasets:[{label:'Entradas',data:l.map(k=>mM[k].e),backgroundColor:'#00b894',borderRadius:5},{label:'Saídas',data:l.map(k=>mM[k].s),backgroundColor:'#d63031',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false}}); }
+    function calcularSaldosContas() { const c=document.getElementById('resumoContas'); if(!c) return; c.innerHTML=''; listaContas.forEach(conta => { let saldo=0; todasTransacoes.forEach(t=>{ if(t.pago!==false) { if(t.tipo==='entrada'&&t.formaPagamento===conta.nome) saldo+=t.valor; if(t.tipo==='saida'&&t.formaPagamento===conta.nome) saldo-=t.valor; if(t.tipo==='transferencia'){ if(t.contaOrigem===conta.nome) saldo-=t.valor; if(t.contaDestino===conta.nome) saldo+=t.valor; } } }); c.innerHTML+=`<div class="wallet-card"><div class="wallet-header"><div class="wallet-icon"><i class="fas fa-wallet"></i></div><div class="wallet-name">${conta.nome}</div></div><div class="wallet-balance blur-content" style="color:${saldo>=0?'var(--text)':'var(--danger)'}">R$ ${saldo.toFixed(2)}</div></div>`; }); }
+
     window.exportarExcel = () => { const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value; const f=todasTransacoes.filter(i=>i.data>=dI&&i.data<=dF); let csv="data:text/csv;charset=utf-8,Data;Descrição;Categoria;Tipo;Valor\n"; f.forEach(r=>{ csv+=`${new Date(r.data).toLocaleDateString('pt-BR')};${r.descricao};${r.categoria};${r.tipo};${r.valor.toString().replace('.',',')}\n`; }); const l=document.createElement("a"); l.href=encodeURI(csv); l.download="relatorio.csv"; l.click(); }
     window.abrirRelatorioAnual=()=>{document.getElementById('modalRelatorio').style.display='flex';const a=dataReferencia.getFullYear();document.getElementById('anoRelatorio').innerText=a;let m=Array(12).fill(0).map(()=>({e:0,s:0}));let te=0,ts=0;todasTransacoes.forEach(t=>{const d=new Date(t.data);if(d.getFullYear()===a&&t.pago!==false&&t.tipo!=='transferencia'){const x=d.getMonth();if(t.tipo==='entrada'){m[x].e+=t.valor;te+=t.valor;}if(t.tipo==='saida'){m[x].s+=t.valor;ts+=t.valor;}}});document.getElementById('repEntradas').innerText=`R$ ${te.toFixed(2)}`;document.getElementById('repSaidas').innerText=`R$ ${ts.toFixed(2)}`;document.getElementById('repSaldo').innerText=`R$ ${(te-ts).toFixed(2)}`;if(chartAnual)chartAnual.destroy();const cx=document.getElementById('graficoAnual').getContext('2d');chartAnual=new Chart(cx,{type:'bar',data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],datasets:[{label:'Entradas',data:m.map(x=>x.e),backgroundColor:'#00b894'},{label:'Saídas',data:m.map(x=>x.s),backgroundColor:'#d63031'}]},options:{responsive:true,maintainAspectRatio:false}});}
     window.fecharRelatorio=()=>{document.getElementById('modalRelatorio').style.display='none';}
     window.processarImportacao=()=>{const f=document.getElementById('fileImport').files[0];const c=document.getElementById('importContaSelect').value;if(!f||c==='Selecione...')return Swal.fire('Erro','Selecione','error');const r=new FileReader();r.onload=async(e)=>{const l=e.target.result.split('\n');let ct=0;for(let x of l){const cols=x.split(',');if(cols.length>=3){const d=cols[0].trim();const desc=cols[1].trim();let v=parseFloat(cols[2].trim());if(!isNaN(v)&&desc&&d.length===10){const tp=v<0?'saida':'entrada';v=Math.abs(v);await addDoc(collection(db,"transacoes"),{descricao:desc,valor:v,tipo:tp,data:d,categoria:'A Classificar',formaPagamento:c,contaOrigem:c,pago:true,uid:currentUser.uid,criadoEm:new Date()});ct++;}}}Swal.fire('Ok',`${ct} importados`,'success');};r.readAsText(f);}
     window.salvarDadosEmpresa = async () => { const d={uid: currentUser.uid, nome:document.getElementById('confEmpresa').value,cnpj:document.getElementById('confCnpj').value,tel:document.getElementById('confTel').value,msg:document.getElementById('confMsg').value}; await setDoc(doc(db,"config",`dados_${currentUser.uid}`),d); Toast.fire({icon:'success'}); dadosEmpresa=d; }
     window.exportarBackup = async () => { const b={transacoes:todasTransacoes,categorias:listaCategorias,contas:listaContas,fixas:listaFixas,metas:[]}; const q=await getDocs(query(collection(db,"metas"), where("uid", "==", currentUser.uid))); q.forEach(d=>b.metas.push({id:d.id,...d.data()})); const s="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(b)); const a=document.createElement('a'); a.href=s; a.download="backup.json"; document.body.appendChild(a); a.click(); a.remove(); }
-    window.importarBackup = async (i) => { const f=i.files[0]; if(!f)return; const r=new FileReader(); r.onload=async(e)=>{ try{ const d=JSON.parse(e.target.result); if(!confirm(`Restaurar?`))return; const imp=async(n,l)=>{for(const x of l){const{id,...dt}=x; dt.uid = currentUser.uid; await setDoc(doc(db,n,id),dt);}}; await imp("transacoes",d.transacoes); await imp("categorias",d.categorias); await imp("contas",d.contas); if(d.metas)await imp("metas",d.metas); Swal.fire('Ok','Feito','success'); }catch(z){Swal.fire('Erro','Inválido','error');} }; r.readAsText(f); }
+    
+    // --- IMPORTAÇÃO COM CONFIRMAÇÃO BONITA ---
+    window.importarBackup = async (i) => { 
+        const f=i.files[0]; 
+        if(!f) return; 
+        
+        const r=new FileReader(); 
+        r.onload=async(e)=>{ 
+            try{ 
+                const d=JSON.parse(e.target.result); 
+                
+                // POP-UP ESTILIZADO DE CONFIRMAÇÃO
+                Swal.fire({
+                    title: 'Restaurar Backup?',
+                    text: "Isso irá adicionar os dados do arquivo ao seu sistema.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, restaurar!',
+                    cancelButtonText: 'Cancelar'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({title: 'Restaurando...', didOpen: () => Swal.showLoading()});
+                        const imp=async(n,l)=>{for(const x of l){const{id,...dt}=x; dt.uid = currentUser.uid; await setDoc(doc(db,n,id),dt);}}; 
+                        await imp("transacoes",d.transacoes); 
+                        await imp("categorias",d.categorias); 
+                        await imp("contas",d.contas); 
+                        if(d.metas)await imp("metas",d.metas); 
+                        Swal.fire('Sucesso','Dados restaurados com sucesso!','success'); 
+                    }
+                });
+            } catch(z){ Swal.fire('Erro','Arquivo de backup inválido','error'); } 
+        }; 
+        r.readAsText(f); 
+    }
+
     window.gerarReciboPDF = (id) => { if(!jsPDF&&window.jspdf)jsPDF=window.jspdf.jsPDF; if(!jsPDF)return; const item=todasTransacoes.find(t=>t.id===id); if(!item)return; const doc=new jsPDF(); doc.setFontSize(18); doc.text(dadosEmpresa.nome||"RECIBO",105,20,null,null,"center"); doc.setFontSize(10); doc.text(`CNPJ: ${dadosEmpresa.cnpj||''} Tel: ${dadosEmpresa.tel||''}`,105,28,null,null,"center"); doc.line(20,35,190,35); doc.setFontSize(12); doc.text(`Valor: R$ ${item.valor.toFixed(2)}`,20,50); doc.text(`Ref: ${item.descricao}`,20,60); doc.text(`Data: ${new Date(item.data).toLocaleDateString('pt-BR',{timeZone:'UTC'})}`,20,70); doc.text(dadosEmpresa.msg||"",105,140,null,null,"center"); doc.save("recibo.pdf"); }
     window.iniciarTutorial = () => { if(window.driver){const d=window.driver.js.driver; d({showProgress:true,steps:[{popover:{title:'Bem-vindo',description:'Sistema Financeiro Pro'}},{element:'#btn-lancar',popover:{title:'Lançar',description:'Registre aqui.'}}]}).drive();} }
     window.alternarStatus = async (id, statusAtual) => { try { await updateDoc(doc(db, "transacoes", id), { pago: !statusAtual }); } catch(e) { console.error(e); } }

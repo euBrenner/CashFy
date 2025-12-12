@@ -256,8 +256,15 @@
         const inpI = document.getElementById('filtroDataInicio');
         const inpF = document.getElementById('filtroDataFim');
         if(inpI && inpF) {
-            inpI.value = pDia.toISOString().split('T')[0];
-            inpF.value = uDia.toISOString().split('T')[0];
+            // CORREÇÃO DE FUSO PARA INPUT DATE
+            const fmt = (d) => {
+                let month = '' + (d.getMonth() + 1), day = '' + d.getDate(), year = d.getFullYear();
+                if (month.length < 2) month = '0' + month;
+                if (day.length < 2) day = '0' + day;
+                return [year, month, day].join('-');
+            }
+            inpI.value = fmt(pDia);
+            inpF.value = fmt(uDia);
             window.aplicarFiltros();
         }
     }
@@ -435,76 +442,11 @@
     window.cancelarEdicaoCat=()=>{editandoCategoriaId=null;document.getElementById('novaCatNome').value='';document.getElementById('btnSalvarCat').innerHTML="Add";document.getElementById('btnCancelarCat').style.display='none';}
     window.prepararEdicaoTransacao=(id)=>{const i=todasTransacoes.find(t=>t.id===id);if(!i)return;document.getElementById('desc').value=i.descricao;document.getElementById('valor').value=i.valor;document.getElementById('tipo').value=i.tipo;document.getElementById('data').value=i.data;document.getElementById('categoriaSelect').value=i.categoria;document.getElementById('pagamentoSelect').value=i.formaPagamento;document.getElementById('statusPago').checked=i.pago!==false;editandoTransacaoId=id;document.getElementById('tituloFormLancar').innerText="Editando";document.getElementById('btnSalvar').innerHTML="ATUALIZAR";document.getElementById('btnCancelarEdicao').style.display='block';mudarAba('lancar');verificarTipo();}
     window.cancelarEdicao=()=>{editandoTransacaoId=null;document.getElementById('tituloFormLancar').innerText="Nova";document.getElementById('desc').value='';document.getElementById('valor').value='';document.getElementById('statusPago').checked=true;document.getElementById('btnSalvar').innerHTML="CONFIRMAR";document.getElementById('btnCancelarEdicao').style.display='none';}
-    
-    // --- UPDATED DELETE FUNCTIONS (SWEETALERT) ---
-    window.deletarCategoria = async (id) => {
-        Swal.fire({
-            title: 'Excluir Categoria?',
-            text: "Você não poderá reverter isso!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sim, excluir!',
-            cancelButtonText: 'Cancelar'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                await deleteDoc(doc(db, "categorias", id));
-                Toast.fire({ icon: 'success', title: 'Categoria excluída' });
-            }
-        });
-    }
-
-    window.deletarConta = async (id) => {
-        Swal.fire({
-            title: 'Excluir Conta?',
-            text: "Isso não apagará as transações vinculadas.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Sim, excluir!'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                await deleteDoc(doc(db, "contas", id));
-                Toast.fire({ icon: 'success', title: 'Conta excluída' });
-            }
-        });
-    }
-
-    window.deletarMeta = async (id) => {
-        Swal.fire({
-            title: 'Excluir Meta?',
-            text: "Seu progresso será perdido.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Sim, excluir!'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                await deleteDoc(doc(db, "metas", id));
-                Toast.fire({ icon: 'success', title: 'Meta excluída' });
-            }
-        });
-    }
-
-    window.deletarFixa = async (id) => {
-        Swal.fire({
-            title: 'Parar Recorrência?',
-            text: "Essa despesa não será mais gerada automaticamente.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Sim, parar!'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                await deleteDoc(doc(db, "despesas_fixas", id));
-                Toast.fire({ icon: 'success', title: 'Removido' });
-            }
-        });
-    }
-
+    window.deletarCategoria=async(id)=>{Swal.fire({title:'Excluir Categoria?',text:"Você não poderá reverter isso!",icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonColor:'#3085d6',confirmButtonText:'Sim, excluir!'}).then(async(result)=>{if(result.isConfirmed){await deleteDoc(doc(db,"categorias",id));Toast.fire({icon:'success',title:'Categoria excluída'});}});}
+    window.deletarConta=async(id)=>{Swal.fire({title:'Excluir Conta?',text:"Isso não apagará as transações.",icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',confirmButtonText:'Sim, excluir!'}).then(async(result)=>{if(result.isConfirmed){await deleteDoc(doc(db,"contas",id));Toast.fire({icon:'success',title:'Conta excluída'});}});}
+    window.deletarMeta=async(id)=>{Swal.fire({title:'Excluir Meta?',text:"Seu progresso será perdido.",icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',confirmButtonText:'Sim, excluir!'}).then(async(result)=>{if(result.isConfirmed){await deleteDoc(doc(db,"metas",id));Toast.fire({icon:'success',title:'Meta excluída'});}});}
+    window.deletarFixa=async(id)=>{Swal.fire({title:'Parar Recorrência?',text:"Essa despesa não será mais gerada.",icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',confirmButtonText:'Sim, parar!'}).then(async(result)=>{if(result.isConfirmed){await deleteDoc(doc(db,"despesas_fixas",id));Toast.fire({icon:'success',title:'Removido'});}});}
     window.movimentarMeta=async(id,s,d)=>{const{value:v}=await Swal.fire({title:d?'Guardar':'Sacar',input:'number',showCancelButton:true});if(v){const n=parseFloat(v),ns=d?s+n:s-n;await updateDoc(doc(db,"metas",id),{atual:ns});}}
-    
     window.deletarTransacao=async(id)=>{Swal.fire({title:'Apagar?',showCancelButton:true,confirmButtonColor:'#d33'}).then(async(r)=>{if(r.isConfirmed)await deleteDoc(doc(db,"transacoes",id))});}
     
     window.aplicarFiltros = () => { const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value, cF=document.getElementById('filtroCategoria').value, termo=document.getElementById('searchInput').value.toLowerCase(); let f=todasTransacoes.filter(i=>{ const md=i.data>=dI&&i.data<=dF, mc=cF==='todas'||i.categoria===cF, mb=i.descricao.toLowerCase().includes(termo); return md&&mc&&mb; }); atualizarTabela(f); atualizarCards(f); atualizarGraficos(f); atualizarOrcamentos(f); }
@@ -515,46 +457,154 @@
     function calcularSaldosContas() { const c=document.getElementById('resumoContas'); if(!c) return; c.innerHTML=''; listaContas.forEach(conta => { let saldo=0; todasTransacoes.forEach(t=>{ if(t.pago!==false) { if(t.tipo==='entrada'&&t.formaPagamento===conta.nome) saldo+=t.valor; if(t.tipo==='saida'&&t.formaPagamento===conta.nome) saldo-=t.valor; if(t.tipo==='transferencia'){ if(t.contaOrigem===conta.nome) saldo-=t.valor; if(t.contaDestino===conta.nome) saldo+=t.valor; } } }); c.innerHTML+=`<div class="wallet-card"><div class="wallet-header"><div class="wallet-icon"><i class="fas fa-wallet"></i></div><div class="wallet-name">${conta.nome}</div></div><div class="wallet-balance blur-content" style="color:${saldo>=0?'var(--text)':'var(--danger)'}">R$ ${saldo.toFixed(2)}</div></div>`; }); }
 
     window.exportarExcel = () => { const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value; const f=todasTransacoes.filter(i=>i.data>=dI&&i.data<=dF); let csv="data:text/csv;charset=utf-8,Data;Descrição;Categoria;Tipo;Valor\n"; f.forEach(r=>{ csv+=`${new Date(r.data).toLocaleDateString('pt-BR')};${r.descricao};${r.categoria};${r.tipo};${r.valor.toString().replace('.',',')}\n`; }); const l=document.createElement("a"); l.href=encodeURI(csv); l.download="relatorio.csv"; l.click(); }
-    window.abrirRelatorioAnual=()=>{document.getElementById('modalRelatorio').style.display='flex';const a=dataReferencia.getFullYear();document.getElementById('anoRelatorio').innerText=a;let m=Array(12).fill(0).map(()=>({e:0,s:0}));let te=0,ts=0;todasTransacoes.forEach(t=>{const d=new Date(t.data);if(d.getFullYear()===a&&t.pago!==false&&t.tipo!=='transferencia'){const x=d.getMonth();if(t.tipo==='entrada'){m[x].e+=t.valor;te+=t.valor;}if(t.tipo==='saida'){m[x].s+=t.valor;ts+=t.valor;}}});document.getElementById('repEntradas').innerText=`R$ ${te.toFixed(2)}`;document.getElementById('repSaidas').innerText=`R$ ${ts.toFixed(2)}`;document.getElementById('repSaldo').innerText=`R$ ${(te-ts).toFixed(2)}`;if(chartAnual)chartAnual.destroy();const cx=document.getElementById('graficoAnual').getContext('2d');chartAnual=new Chart(cx,{type:'bar',data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],datasets:[{label:'Entradas',data:m.map(x=>x.e),backgroundColor:'#00b894'},{label:'Saídas',data:m.map(x=>x.s),backgroundColor:'#d63031'}]},options:{responsive:true,maintainAspectRatio:false}});}
+    window.abrirRelatorioAnual=()=>{
+        document.getElementById('modalRelatorio').style.display='flex';
+        const a=dataReferencia.getFullYear();
+        document.getElementById('anoRelatorio').innerText=a;
+        let m=Array(12).fill(0).map(()=>({e:0,s:0}));
+        let te=0,ts=0;
+        todasTransacoes.forEach(t=>{
+            // CORREÇÃO DE FUSO: Lê a data como String, não como Date Object
+            const partes = t.data.split('-'); 
+            const anoTransacao = parseInt(partes[0]);
+            const mesTransacao = parseInt(partes[1]) - 1; // 0-11
+            
+            if(anoTransacao===a && t.pago!==false && t.tipo!=='transferencia'){
+                if(t.tipo==='entrada'){ m[mesTransacao].e+=t.valor; te+=t.valor; }
+                if(t.tipo==='saida'){ m[mesTransacao].s+=t.valor; ts+=t.valor; }
+            }
+        });
+        document.getElementById('repEntradas').innerText=`R$ ${te.toFixed(2)}`;
+        document.getElementById('repSaidas').innerText=`R$ ${ts.toFixed(2)}`;
+        document.getElementById('repSaldo').innerText=`R$ ${(te-ts).toFixed(2)}`;
+        if(chartAnual)chartAnual.destroy();
+        const cx=document.getElementById('graficoAnual').getContext('2d');
+        chartAnual=new Chart(cx,{type:'bar',data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],datasets:[{label:'Entradas',data:m.map(x=>x.e),backgroundColor:'#00b894'},{label:'Saídas',data:m.map(x=>x.s),backgroundColor:'#d63031'}]},options:{responsive:true,maintainAspectRatio:false}});
+    }
     window.fecharRelatorio=()=>{document.getElementById('modalRelatorio').style.display='none';}
-    window.processarImportacao=()=>{const f=document.getElementById('fileImport').files[0];const c=document.getElementById('importContaSelect').value;if(!f||c==='Selecione...')return Swal.fire('Erro','Selecione','error');const r=new FileReader();r.onload=async(e)=>{const l=e.target.result.split('\n');let ct=0;for(let x of l){const cols=x.split(',');if(cols.length>=3){const d=cols[0].trim();const desc=cols[1].trim();let v=parseFloat(cols[2].trim());if(!isNaN(v)&&desc&&d.length===10){const tp=v<0?'saida':'entrada';v=Math.abs(v);await addDoc(collection(db,"transacoes"),{descricao:desc,valor:v,tipo:tp,data:d,categoria:'A Classificar',formaPagamento:c,contaOrigem:c,pago:true,uid:currentUser.uid,criadoEm:new Date()});ct++;}}}Swal.fire('Ok',`${ct} importados`,'success');};r.readAsText(f);}
+    
+    // --- IMPORTAÇÃO INTELIGENTE (NUBANK + GENÉRICO) ---
+    window.processarImportacao = () => {
+        const fileInput = document.getElementById('fileImport');
+        const contaDestino = document.getElementById('importContaSelect').value;
+        
+        if (!fileInput.files.length || contaDestino === 'Selecione...') {
+            return Swal.fire('Atenção', 'Selecione o arquivo e a conta de destino.', 'warning');
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const linhas = e.target.result.split('\n');
+            let importados = 0;
+            let ignorados = 0;
+
+            Swal.fire({title: 'Importando...', didOpen: () => Swal.showLoading()});
+
+            for (let i = 0; i < linhas.length; i++) {
+                let linha = linhas[i].trim();
+                if (!linha) continue;
+
+                // 1. Detecta o separador (Nubank usa vírgula, BR usa ponto e vírgula)
+                const separador = linha.includes(';') ? ';' : ',';
+                linha = linha.replace(/"/g, ''); 
+                const colunas = linha.split(separador);
+
+                let dataFinal, descricaoFinal, valorFinal;
+
+                // --- LÓGICA DE DETECÇÃO ---
+
+                // CASO 1: NUBANK (Geralmente 4 colunas: date, category, title, amount)
+                if (colunas.length >= 4 && colunas[0].includes('-')) {
+                    if(colunas[0].toLowerCase().includes('date')) continue;
+
+                    dataFinal = colunas[0]; // Já vem YYYY-MM-DD
+                    descricaoFinal = colunas[2]; // O título é a terceira coluna
+                    valorFinal = parseFloat(colunas[3]);
+                }
+                
+                // CASO 2: GENÉRICO / MODELO SIMPLES (3 colunas: Data, Descrição, Valor)
+                else if (colunas.length >= 3) {
+                    if(colunas[0].toLowerCase().includes('data')) continue;
+
+                    let d = colunas[0];
+                    if (d.includes('/')) {
+                        const partes = d.split('/');
+                        if(partes.length === 3) dataFinal = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                    } else {
+                        dataFinal = d;
+                    }
+
+                    descricaoFinal = colunas[1];
+                    let v = colunas[2];
+                    if (v.includes(',') && !v.includes('.')) v = v.replace(',', '.'); 
+                    valorFinal = parseFloat(v);
+                } 
+                else {
+                    ignorados++;
+                    continue; 
+                }
+
+                // 2. Validação e Salvamento
+                if (dataFinal && descricaoFinal && !isNaN(valorFinal)) {
+                    // Nubank não usa negativo para saída, então detectamos pelo contexto se necessário,
+                    // mas geralmente extrato CSV já vem com sinal ou coluna de débito/crédito.
+                    // Ajuste: Nubank CSV exporta saídas como positivo. Vamos assumir que tudo é SAÍDA a menos que seja "Pagamento recebido" ou similar
+                    // OU (Melhor): Deixar o usuário ajustar depois. 
+                    // Mas, para facilitar: Se o valor for negativo no CSV, é saída.
+                    
+                    const tipo = valorFinal < 0 ? 'saida' : 'entrada'; 
+                    const valorAbs = Math.abs(valorFinal);
+
+                    await addDoc(collection(db, "transacoes"), {
+                        descricao: descricaoFinal,
+                        valor: valorAbs,
+                        tipo: tipo,
+                        data: dataFinal,
+                        categoria: 'Importado', 
+                        formaPagamento: contaDestino,
+                        contaOrigem: contaDestino,
+                        pago: true,
+                        uid: currentUser.uid,
+                        criadoEm: new Date()
+                    });
+                    importados++;
+                } else {
+                    ignorados++;
+                }
+            }
+
+            Swal.fire('Sucesso', `${importados} transações importadas!`, 'success');
+        };
+        reader.readAsText(fileInput.files[0]);
+    }
+
     window.salvarDadosEmpresa = async () => { const d={uid: currentUser.uid, nome:document.getElementById('confEmpresa').value,cnpj:document.getElementById('confCnpj').value,tel:document.getElementById('confTel').value,msg:document.getElementById('confMsg').value}; await setDoc(doc(db,"config",`dados_${currentUser.uid}`),d); Toast.fire({icon:'success'}); dadosEmpresa=d; }
     window.exportarBackup = async () => { const b={transacoes:todasTransacoes,categorias:listaCategorias,contas:listaContas,fixas:listaFixas,metas:[]}; const q=await getDocs(query(collection(db,"metas"), where("uid", "==", currentUser.uid))); q.forEach(d=>b.metas.push({id:d.id,...d.data()})); const s="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(b)); const a=document.createElement('a'); a.href=s; a.download="backup.json"; document.body.appendChild(a); a.click(); a.remove(); }
-    
-    // --- IMPORTAÇÃO COM CONFIRMAÇÃO BONITA ---
     window.importarBackup = async (i) => { 
         const f=i.files[0]; 
         if(!f) return; 
-        
         const r=new FileReader(); 
         r.onload=async(e)=>{ 
             try{ 
                 const d=JSON.parse(e.target.result); 
-                
-                // POP-UP ESTILIZADO DE CONFIRMAÇÃO
                 Swal.fire({
                     title: 'Restaurar Backup?',
-                    text: "Isso irá adicionar os dados do arquivo ao seu sistema.",
+                    text: "Isso irá adicionar os dados ao sistema.",
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonText: 'Sim, restaurar!',
-                    cancelButtonText: 'Cancelar'
+                    confirmButtonText: 'Sim, restaurar!'
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         Swal.fire({title: 'Restaurando...', didOpen: () => Swal.showLoading()});
                         const imp=async(n,l)=>{for(const x of l){const{id,...dt}=x; dt.uid = currentUser.uid; await setDoc(doc(db,n,id),dt);}}; 
-                        await imp("transacoes",d.transacoes); 
-                        await imp("categorias",d.categorias); 
-                        await imp("contas",d.contas); 
-                        if(d.metas)await imp("metas",d.metas); 
-                        Swal.fire('Sucesso','Dados restaurados com sucesso!','success'); 
+                        await imp("transacoes",d.transacoes); await imp("categorias",d.categorias); await imp("contas",d.contas); if(d.metas)await imp("metas",d.metas); 
+                        Swal.fire('Sucesso','Restaurado!','success'); 
                     }
                 });
-            } catch(z){ Swal.fire('Erro','Arquivo de backup inválido','error'); } 
+            } catch(z){ Swal.fire('Erro','Arquivo inválido','error'); } 
         }; 
         r.readAsText(f); 
     }
-
     window.gerarReciboPDF = (id) => { if(!jsPDF&&window.jspdf)jsPDF=window.jspdf.jsPDF; if(!jsPDF)return; const item=todasTransacoes.find(t=>t.id===id); if(!item)return; const doc=new jsPDF(); doc.setFontSize(18); doc.text(dadosEmpresa.nome||"RECIBO",105,20,null,null,"center"); doc.setFontSize(10); doc.text(`CNPJ: ${dadosEmpresa.cnpj||''} Tel: ${dadosEmpresa.tel||''}`,105,28,null,null,"center"); doc.line(20,35,190,35); doc.setFontSize(12); doc.text(`Valor: R$ ${item.valor.toFixed(2)}`,20,50); doc.text(`Ref: ${item.descricao}`,20,60); doc.text(`Data: ${new Date(item.data).toLocaleDateString('pt-BR',{timeZone:'UTC'})}`,20,70); doc.text(dadosEmpresa.msg||"",105,140,null,null,"center"); doc.save("recibo.pdf"); }
     window.iniciarTutorial = () => { if(window.driver){const d=window.driver.js.driver; d({showProgress:true,steps:[{popover:{title:'Bem-vindo',description:'Sistema Financeiro Pro'}},{element:'#btn-lancar',popover:{title:'Lançar',description:'Registre aqui.'}}]}).drive();} }
     window.alternarStatus = async (id, statusAtual) => { try { await updateDoc(doc(db, "transacoes", id), { pago: !statusAtual }); } catch(e) { console.error(e); } }

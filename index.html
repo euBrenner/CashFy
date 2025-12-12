@@ -35,13 +35,9 @@
         .login-box { background: var(--white); padding: 40px 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
         
         .btn-primary { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; padding: 16px; width: 100%; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; margin-bottom: 10px; }
-        
-        /* BOTÃO SECUNDÁRIO E VOLTAR */
         .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); padding: 14px; width: 100%; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; }
         .btn-outline:hover { background: rgba(78, 84, 200, 0.1); }
-        
         .btn-link { background: none; border: none; color: #666; cursor: pointer; text-decoration: underline; margin-top: 10px; font-size: 14px; }
-
         .forgot-pass { margin-top: 15px; color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 14px; display: block; font-weight: 500; }
 
         #appContainer { display: none; padding: 10px; max-width: 1200px; margin: 0 auto; }
@@ -208,12 +204,12 @@
     // [IMPORTANTE] COLE SUAS CHAVES AQUI:
     // -----------------------------------------------------------
     const firebaseConfig = {
-apiKey: "AIzaSyBTIRSVQ1UabzmSnAlf61YPhTCYv9YHE-o",
-  authDomain: "controle-financeiro-9a038.firebaseapp.com",
-  projectId: "controle-financeiro-9a038",
-  storageBucket: "controle-financeiro-9a038.firebasestorage.app",
-  messagingSenderId: "762240022116",
-  appId: "1:762240022116:web:ac45f5b5adde61eccad171"
+        apiKey: "AIzaSyBTIRSVQ1UabzmSnAlf61YPhTCYv9YHE-o",
+        authDomain: "controle-financeiro-9a038.firebaseapp.com",
+        projectId: "controle-financeiro-9a038",
+        storageBucket: "controle-financeiro-9a038.firebasestorage.app",
+        messagingSenderId: "762240022116",
+        appId: "1:762240022116:web:ac45f5b5adde61eccad171"
     };
     // -----------------------------------------------------------
 
@@ -357,6 +353,8 @@ apiKey: "AIzaSyBTIRSVQ1UabzmSnAlf61YPhTCYv9YHE-o",
     function atualizarOrcamentos(d){ const c=document.getElementById('resumoCategorias'); c.innerHTML=''; const g={}; d.forEach(i=>{ if(i.tipo==='saida' && i.pago !== false)g[i.categoria]=(g[i.categoria]||0)+i.valor; }); listaCategorias.forEach(cat=>{ const ga=g[cat.nome]||0,l=cat.limite||0; if(l===0&&ga===0)return; let p=(l>0)?(ga/l)*100:100; c.innerHTML+=`<div style="margin-bottom:15px; font-size:13px;"><div style="display:flex;justify-content:space-between;"><span>${cat.nome}</span><span class="blur-content">${ga.toFixed(0)} / ${l.toFixed(0)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${p>100?100:p}%; background:${ga>l?'var(--danger)':'var(--success)'};"></div></div></div>`; }); }
     function atualizarGraficos(d){ const cM={}; d.filter(x=>x.tipo==='saida' && x.pago !== false).forEach(x=>{ cM[x.categoria]=(cM[x.categoria]||0)+x.valor; }); if(chartPizza)chartPizza.destroy(); chartPizza=new Chart(document.getElementById('graficoPizza'),{type:'doughnut',data:{labels:Object.keys(cM),datasets:[{data:Object.values(cM),backgroundColor:['#4e54c8','#8f94fb','#00b894','#fdcb6e','#d63031']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}}); const mM={}; d.forEach(x=>{ if(x.pago===false)return; const m=x.data.substring(0,7); if(!mM[m])mM[m]={e:0,s:0}; if(x.tipo==='entrada')mM[m].e+=x.valor; else if(x.tipo==='saida')mM[m].s+=x.valor; }); const l=Object.keys(mM).sort(); if(chartBarras)chartBarras.destroy(); chartBarras=new Chart(document.getElementById('graficoBarras'),{type:'bar',data:{labels:l,datasets:[{label:'Entradas',data:l.map(k=>mM[k].e),backgroundColor:'#00b894',borderRadius:5},{label:'Saídas',data:l.map(k=>mM[k].s),backgroundColor:'#d63031',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false}}); }
     window.exportarExcel = () => { const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value; const f=todasTransacoes.filter(i=>i.data>=dI&&i.data<=dF); let csv="data:text/csv;charset=utf-8,Data;Descrição;Categoria;Tipo;Valor\n"; f.forEach(r=>{ csv+=`${new Date(r.data).toLocaleDateString('pt-BR')};${r.descricao};${r.categoria};${r.tipo};${r.valor.toString().replace('.',',')}\n`; }); const l=document.createElement("a"); l.href=encodeURI(csv); l.download="relatorio.csv"; l.click(); }
+    window.abrirRelatorioAnual=()=>{document.getElementById('modalRelatorio').style.display='flex';const a=dataReferencia.getFullYear();document.getElementById('anoRelatorio').innerText=a;let m=Array(12).fill(0).map(()=>({e:0,s:0}));let te=0,ts=0;todasTransacoes.forEach(t=>{const d=new Date(t.data);if(d.getFullYear()===a&&t.pago!==false&&t.tipo!=='transferencia'){const x=d.getMonth();if(t.tipo==='entrada'){m[x].e+=t.valor;te+=t.valor;}if(t.tipo==='saida'){m[x].s+=t.valor;ts+=t.valor;}}});document.getElementById('repEntradas').innerText=`R$ ${te.toFixed(2)}`;document.getElementById('repSaidas').innerText=`R$ ${ts.toFixed(2)}`;document.getElementById('repSaldo').innerText=`R$ ${(te-ts).toFixed(2)}`;if(chartAnual)chartAnual.destroy();const cx=document.getElementById('graficoAnual').getContext('2d');chartAnual=new Chart(cx,{type:'bar',data:{labels:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],datasets:[{label:'Entradas',data:m.map(x=>x.e),backgroundColor:'#00b894'},{label:'Saídas',data:m.map(x=>x.s),backgroundColor:'#d63031'}]},options:{responsive:true,maintainAspectRatio:false}});}
+    window.fecharRelatorio=()=>{document.getElementById('modalRelatorio').style.display='none';}
 </script>
 </body>
 </html>

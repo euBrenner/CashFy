@@ -1,7 +1,7 @@
 {
-  "name": "CashFy - Gestão Financeira",
+  "name": "CashFy",
   "short_name": "CashFy",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "display": "standalone",
   "background_color": "#4e54c8",
   "theme_color": "#4e54c8",

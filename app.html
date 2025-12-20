@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CashFy - Gestão Financeira</title>
+    <title>CashFy - Sistema</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4e54c8">
@@ -264,7 +264,7 @@
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"; 
 
     // --- CONFIGURAÇÃO DO DONO (IMPORTANTE: MUDE O EMAIL ABAIXO) ---
-    const ADMIN_EMAIL = "bjalmeida.sbube13@gmail.com"; // <--- COLOQUE SEU E-MAIL AQUI
+    const ADMIN_EMAIL = "bjalmeida.sbube13@gmail.com"; 
 
     // --- 1. VARIÁVEIS GLOBAIS ---
     let todasTransacoes=[], listaCategorias=[], listaContas=[], listaFixas=[], chartPizza=null, chartBarras=null, chartAnual=null;
@@ -277,9 +277,8 @@
     // --- 2. FUNÇÕES UX ---
     window.toggleTheme = () => {
         document.body.classList.toggle('dark-mode');
-        const isDark = document.body.classList.contains('dark-mode');
-        if(document.getElementById('btnTheme')) document.getElementById('btnTheme').innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        if(document.getElementById('btnTheme')) document.getElementById('btnTheme').innerHTML = document.body.classList.contains('dark-mode') ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
     }
 
     window.toggleLimitInput = () => {
@@ -306,6 +305,7 @@
         else{document.getElementById('tabConfig').classList.add('active');if(btns[5])btns[5].classList.add('active');} 
     }
 
+    // --- 3. LÓGICA CORE ---
     window.aplicarFiltros = () => { 
         const dI=document.getElementById('filtroDataInicio').value, dF=document.getElementById('filtroDataFim').value, cF=document.getElementById('filtroCategoria').value, termo=document.getElementById('searchInput').value.toLowerCase(); 
         let f=todasTransacoes.filter(i=>{ const md=i.data>=dI&&i.data<=dF, mc=cF==='todas'||i.categoria===cF, mb=i.descricao.toLowerCase().includes(termo); return md&&mc&&mb; }); 
@@ -356,6 +356,7 @@
         }
     }
     
+    // --- 4. FUNÇÕES DE SUPORTE ---
     window.atualizarOrcamentos = (d) => { const c=document.getElementById('resumoCategorias'); c.innerHTML=''; const g={}; d.forEach(i=>{ if(i.tipo==='saida' && i.pago !== false && isFinite(i.valor))g[i.categoria]=(g[i.categoria]||0)+i.valor; }); listaCategorias.forEach(cat=>{ const ga=g[cat.nome]||0,l=cat.limite||0; if(l===0&&ga===0)return; let p=(l>0)?(ga/l)*100:100; c.innerHTML+=`<div style="margin-bottom:15px; font-size:13px;"><div style="display:flex;justify-content:space-between;"><span>${cat.nome}</span><span class="blur-content">${ga.toFixed(0)} / ${l.toFixed(0)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${p>100?100:p}%; background:${ga>l?'var(--danger)':'var(--success)'};"></div></div></div>`; }); }
     window.atualizarGraficos = (d) => { const cM={}; d.filter(x=>x.tipo==='saida' && x.pago !== false && isFinite(x.valor)).forEach(x=>{ cM[x.categoria]=(cM[x.categoria]||0)+x.valor; }); if(chartPizza)chartPizza.destroy(); chartPizza=new Chart(document.getElementById('graficoPizza'),{type:'doughnut',data:{labels:Object.keys(cM),datasets:[{data:Object.values(cM),backgroundColor:['#4e54c8','#8f94fb','#00b894','#fdcb6e','#d63031']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}}); const mM={}; d.forEach(x=>{ if(x.pago===false || !isFinite(x.valor))return; const m=x.data.substring(0,7); if(!mM[m])mM[m]={e:0,s:0}; if(x.tipo==='entrada')mM[m].e+=x.valor; else if(x.tipo==='saida')mM[m].s+=x.valor; }); const l=Object.keys(mM).sort(); if(chartBarras)chartBarras.destroy(); chartBarras=new Chart(document.getElementById('graficoBarras'),{type:'bar',data:{labels:l,datasets:[{label:'Entradas',data:l.map(k=>mM[k].e),backgroundColor:'#00b894',borderRadius:5},{label:'Saídas',data:l.map(k=>mM[k].s),backgroundColor:'#d63031',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false}}); }
     window.mudarMes = (d) => { dataReferencia.setMonth(dataReferencia.getMonth() + d); window.atualizarLabelMes(); }
@@ -393,13 +394,10 @@
 
     // --- FUNÇÃO DO ADMIN ---
     window.criarCodigoConvite = async () => {
-        // Gera um código aleatório de 6 dígitos (ex: VIP-A8B9)
         const randomCode = 'VIP-' + Math.random().toString(36).substring(2, 6).toUpperCase();
         try {
             await setDoc(doc(db, "convites", randomCode), { usado: false });
             document.getElementById('ultimoCodigo').innerText = randomCode;
-            
-            // Copiar para área de transferência
             navigator.clipboard.writeText(randomCode);
             Swal.fire('Sucesso!', `Código <b>${randomCode}</b> criado e copiado!`, 'success');
         } catch (error) {
@@ -437,6 +435,106 @@
         }catch(e){Swal.fire('Erro',e.message,'error');} 
     });
 
+    const inicializarSistema = () => {
+        onSnapshot(query(collection(db, "transacoes"), where("uid", "==", currentUser.uid), orderBy("data", "desc")), (s)=>{
+            todasTransacoes = []; s.forEach(d=>todasTransacoes.push({id:d.id, ...d.data()}));
+            window.aplicarFiltros(); window.calcularSaldosContas(); window.checkOnboarding();
+        });
+        onSnapshot(query(collection(db, "categorias"), where("uid", "==", currentUser.uid)), (s)=>{
+            listaCategorias=[]; s.forEach(d=>listaCategorias.push({id:d.id,...d.data()}));
+            const sel = document.getElementById('categoriaSelect');
+            if(sel) { sel.innerHTML = '<option>Selecione...</option>'; listaCategorias.forEach(c => { sel.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const selF = document.getElementById('filtroCategoria');
+            if(selF) { selF.innerHTML = '<option value="todas">Todas Categorias</option>'; listaCategorias.forEach(c => { selF.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const selFix = document.getElementById('fixaCategoriaSelect');
+            if(selFix) { selFix.innerHTML = ''; listaCategorias.forEach(c => { selFix.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const d = document.getElementById('listaCategoriasConfig');
+            if(d) { d.innerHTML=''; listaCategorias.forEach(c=>{ d.innerHTML+=`<div class="cat-item"> <div style="flex:1; font-weight:600; color:${c.tipo==='entrada'?'var(--success)':'var(--danger)'}">${c.tipo==='entrada'?'🟢':'🔴'} ${c.nome}</div> <div style="color:#888; font-size:12px; margin-right:10px;">${c.limite>0?'Teto: R$'+c.limite:''}</div> <button class="btn-sm btn-edit" onclick="prepararEdicaoCategoria('${c.id}','${c.nome}','${c.limite}','${c.tipo}')"><i class="fas fa-pen"></i></button> <button class="btn-sm btn-delete" onclick="deletarCategoria('${c.id}')"><i class="fas fa-trash"></i></button> </div>`; }); }
+            window.aplicarFiltros();
+        });
+        onSnapshot(query(collection(db, "contas"), where("uid", "==", currentUser.uid)), (s)=>{
+            listaContas=[]; s.forEach(d=>listaContas.push({id:d.id,...d.data()}));
+            const p = document.getElementById('pagamentoSelect');
+            if(p) { p.innerHTML = '<option>Selecione...</option>'; listaContas.forEach(c => { p.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const d = document.getElementById('contaDestinoSelect');
+            if(d) { d.innerHTML = '<option>Selecione...</option>'; listaContas.forEach(c => { d.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const imp = document.getElementById('importContaSelect');
+            if(imp) { imp.innerHTML = '<option>Selecione...</option>'; listaContas.forEach(c => { imp.innerHTML += `<option value="${c.nome}">${c.nome}</option>`; }); }
+            const l = document.getElementById('listaContasGerenciar');
+            if(l) { l.innerHTML=''; listaContas.forEach(c=>{ l.innerHTML+=`<div class="wallet-card"><div class="wallet-header"><div class="wallet-icon"><i class="fas ${c.tipo==='banco'?'fa-university':(c.tipo==='cartao'?'fa-credit-card':'fa-wallet')}"></i></div><div style="flex:1; margin-left:10px;"><div class="wallet-name">${c.nome}</div><div style="font-size:11px; color:#888;">${c.tipo.toUpperCase()}</div></div><button class="btn-sm btn-delete" onclick="deletarConta('${c.id}')"><i class="fas fa-trash"></i></button></div>${c.tipo==='cartao'?`<div style="font-size:11px; color:#666; margin-top:5px;">Fechamento dia: <b>${c.diaFechamento||'-'}</b> / Vencimento: <b>${c.diaVencimento||'-'}</b><br>Limite: R$ ${c.limite||0}</div>`:''}</div>`; }); }
+            window.calcularSaldosContas(); window.checkOnboarding();
+        });
+        onSnapshot(query(collection(db, "metas"), where("uid", "==", currentUser.uid)), (s)=>{
+            const div = document.getElementById('listaMetas'); div.innerHTML=''; 
+            s.forEach(d=>{ const m={id:d.id,...d.data()}; const p=(m.atual/m.alvo)*100; div.innerHTML+=`<div class="goal-card"><div style="display:flex; justify-content:space-between;"><h4>${m.nome}</h4><button class="btn-trash" onclick="deletarMeta('${m.id}')"><i class="fas fa-trash"></i></button></div><div class="big-progress"><div class="big-fill" style="width:${p>100?100:p}%"></div></div><div style="display:flex; justify-content:space-between; margin-bottom:15px;"><span class="blur-content">R$ ${m.atual}</span><span>Alvo: R$ ${m.alvo}</span></div><div style="display:flex; gap:10px;"><button class="btn-deposit" onclick="movimentarMeta('${m.id}',${m.atual},true)">Guardar</button><button class="btn-withdraw" onclick="movimentarMeta('${m.id}',${m.atual},false)">Sacar</button></div></div>`; });
+        });
+        onSnapshot(query(collection(db, "despesas_fixas"), where("uid", "==", currentUser.uid)), (s)=>{
+            listaFixas=[]; s.forEach(d=>listaFixas.push({id:d.id,...d.data()}));
+            const c=document.getElementById('listaFixasContainer'); if(c){ c.innerHTML=''; listaFixas.forEach(f=>{ c.innerHTML+=`<div class="cat-item" style="justify-content:space-between;"><div><b>${f.descricao}</b><br><small>Dia ${f.dia} - R$ ${f.valor}</small></div><button class="btn-sm btn-delete" onclick="deletarFixa('${f.id}')"><i class="fas fa-trash"></i></button></div>`; }); }
+        });
+        getDoc(doc(db, "config", `dados_${currentUser.uid}`)).then(d=>{ if(d.exists()) { dadosEmpresa=d.data(); document.getElementById('confEmpresa').value=dadosEmpresa.nome||''; document.getElementById('confCnpj').value=dadosEmpresa.cnpj||''; document.getElementById('confTel').value=dadosEmpresa.tel||''; document.getElementById('confMsg').value=dadosEmpresa.msg||''; } });
+        window.atualizarLabelMes();
+    }
+
+    // --- SETUP DE LOGIN ---
+    document.getElementById('btnLogin').addEventListener('click', () => {
+        const e = document.getElementById('emailInput').value;
+        const p = document.getElementById('passInput').value;
+        signInWithEmailAndPassword(auth, e, p).catch(err => Swal.fire('Erro', err.message, 'error'));
+    });
+
+    document.getElementById('btnRegisterMode').addEventListener('click', () => {
+        document.getElementById('btnLogin').style.display='none';
+        document.getElementById('btnRegisterMode').style.display='none';
+        document.getElementById('divInviteCode').style.display='block';
+        document.getElementById('btnConfirmRegister').style.display='block';
+        document.getElementById('btnBackToLogin').style.display='block';
+    });
+
+    document.getElementById('btnBackToLogin').addEventListener('click', () => {
+        document.getElementById('btnLogin').style.display='block';
+        document.getElementById('btnRegisterMode').style.display='block';
+        document.getElementById('divInviteCode').style.display='none';
+        document.getElementById('btnConfirmRegister').style.display='none';
+        document.getElementById('btnBackToLogin').style.display='none';
+    });
+
+    document.getElementById('btnConfirmRegister').addEventListener('click', async () => {
+        const e = document.getElementById('emailInput').value;
+        const p = document.getElementById('passInput').value;
+        const code = document.getElementById('inviteCode').value.trim();
+
+        if(!code) return Swal.fire('Erro', 'Precisa do código de convite!', 'error');
+
+        // VALIDAÇÃO DO CÓDIGO
+        try {
+            const docRef = doc(db, "convites", code);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists() && docSnap.data().usado === false) {
+                // Código válido! Cria a conta
+                createUserWithEmailAndPassword(auth, e, p).then(async () => {
+                    // Queima o código (marca como usado)
+                    await updateDoc(docRef, { usado: true, usadoPor: e, dataUso: new Date() });
+                    Swal.fire('Bem-vindo!', 'Conta criada com sucesso!', 'success');
+                }).catch(err => Swal.fire('Erro', err.message, 'error'));
+            } else {
+                Swal.fire('Erro', 'Código inválido ou já usado!', 'error');
+            }
+        } catch (error) {
+            Swal.fire('Erro', 'Falha ao verificar código.', 'error');
+        }
+    });
+
+    // --- AQUI ESTÁ A CORREÇÃO DO LOGOUT ---
+    document.getElementById('btnLogout').addEventListener('click', () => {
+        signOut(auth).then(() => {
+            location.reload(); 
+        }).catch((error) => {
+            console.error("Erro ao sair", error);
+        });
+    });
+
     // -----------------------------------------------------------
     // [IMPORTANTE] COLE SUAS CHAVES AQUI:
     // -----------------------------------------------------------
@@ -467,8 +565,9 @@
 
             inicializarSistema(); 
         } 
-        else { currentUser = null; document.getElementById('loginOverlay').style.display='flex'; document.getElementById('appContainer').style.display='none'; if(btnBackToLogin) btnBackToLogin.click(); } 
+        else { currentUser = null; document.getElementById('loginOverlay').style.display='flex'; document.getElementById('appContainer').style.display='none'; if(document.getElementById('btnBackToLogin')) document.getElementById('btnBackToLogin').click(); } 
     });
+
 </script>
 </body>
 </html>
